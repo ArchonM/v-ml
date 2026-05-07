@@ -28,8 +28,12 @@ ml-train/wandb/
 *.onnx
 
 # hls4ml / Vivado / Vitis generated outputs
+v-converter/**/.hls.failed
+v-converter/**/logs/
 v-converter/**/myproject_prj/
 v-converter/**/tb_data/
+v-converter/**/firmware/ap_types/
+v-converter/**/firmware/nnet_utils/
 v-converter/**/firmware/weights/
 *.jou
 *.log
