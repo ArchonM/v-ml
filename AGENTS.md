@@ -7,6 +7,10 @@ This workspace is for a new Verilog ML flow with two main parts:
 1. `ml-train/`
    - PyTorch training work lives here.
    - Use this folder for datasets, training scripts, model definitions, checkpoints, and evaluation code.
+   - Raw workload logs are stored under `ml-train/data/raw/`.
+   - Processed training data is generated under `ml-train/data/processed/`.
+   - `ml-train/raw_data_processor.py` scans raw `.log` files and creates matching `.csv` files only when the processed version does not already exist.
+   - The processor preserves the pipe-delimited log header as a CSV header and writes consecutive row deltas instead of raw cumulative counter values.
 
 2. `v-converter/`
    - hls4ml conversion work lives here.
@@ -29,12 +33,13 @@ If PowerShell profile loading emits an execution-policy warning, continue using 
 ## Git
 
 - This repository was initialized locally first.
-- No remote repository has been created yet.
-- Do not assume an origin remote exists until the user creates or provides one.
+- The GitHub remote is `https://github.com/ArchonM/v-ml.git`.
+- The main branch is `main`.
 
 ## Working Conventions
 
 - Keep PyTorch training code and generated training artifacts scoped to `ml-train/`.
+- `ml-train/data/` is ignored by Git by default; commit raw or processed datasets only if the user explicitly asks.
 - Keep hls4ml conversion scripts, generated HLS projects, and Verilog output scoped to `v-converter/`.
 - Prefer small, reproducible scripts over notebook-only workflows.
 - Avoid committing large generated artifacts, datasets, caches, and build outputs unless the user explicitly asks to track them.
