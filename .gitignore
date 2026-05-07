@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Environments
+.venv/
+venv/
+env/
+.env
+.env.*
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Training data and model artifacts
+ml-train/data/
+ml-train/checkpoints/
+ml-train/runs/
+ml-train/wandb/
+*.pt
+*.pth
+*.onnx
+
+# hls4ml / Vivado / Vitis generated outputs
+v-converter/**/myproject_prj/
+v-converter/**/tb_data/
+v-converter/**/firmware/weights/
+*.jou
+*.log
+*.str
+*.rpt
+*.dcp
+*.bit
+*.ltx
+*.wdb
+*.vcd
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.history/
