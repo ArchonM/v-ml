@@ -1,4 +1,4 @@
-"""Convert raw workload log files into processed CSV delta files.
+"""Convert raw workload log files into processed CSV files.
 
 The processor scans data/raw for .log files and creates matching .csv files in
 data/processed. Existing processed files are skipped unless --force is used.
@@ -65,7 +65,13 @@ def read_log(path: Path) -> tuple[list[str], list[list[int | float]]]:
 
 def row_deltas(rows: list[list[int | float]]) -> list[list[int | float]]:
     return [
-        [current - previous for current, previous in zip(rows[index], rows[index - 1])]
+        [
+            rows[index][0],
+            *[
+                current - previous
+                for current, previous in zip(rows[index][1:], rows[index - 1][1:])
+            ],
+        ]
         for index in range(1, len(rows))
     ]
 
@@ -111,7 +117,10 @@ def process_new_logs(raw_dir: Path, processed_dir: Path, force: bool = False) ->
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Convert raw pipe-delimited workload logs into CSV delta files."
+        description=(
+            "Convert raw pipe-delimited workload logs into CSV files, preserving "
+            "IRQ and using deltas for the remaining columns."
+        )
     )
     parser.add_argument(
         "--raw-dir",

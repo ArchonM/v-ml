@@ -21,6 +21,7 @@ env/
 # Training data and model artifacts
 ml-train/data/
 ml-train/checkpoints/
+ml-train/logs/
 ml-train/runs/
 ml-train/wandb/
 *.pt

@@ -10,7 +10,14 @@ This workspace is for a new Verilog ML flow with two main parts:
    - Raw workload logs are stored under `ml-train/data/raw/`.
    - Processed training data is generated under `ml-train/data/processed/`.
    - `ml-train/raw_data_processor.py` scans raw `.log` files and creates matching `.csv` files only when the processed version does not already exist.
-   - The processor preserves the pipe-delimited log header as a CSV header and writes consecutive row deltas instead of raw cumulative counter values.
+   - The processor preserves the pipe-delimited log header as a CSV header.
+   - In processed CSVs, `IRQ` is kept from the current raw row because it is the time point. The remaining counter columns use consecutive row deltas instead of raw cumulative values.
+   - `ml-train/train_sequence_classifier.py` is the scratch PyTorch training workflow.
+   - The current starter model is a compact GRU sequence classifier for variable-length workload time series.
+   - Each processed CSV is treated as one sequence sample; the filename stem is the label.
+   - Default input features are `Cycles`, `Instructions`, `Loads`, `Stores`, and `Arithmetic`; `IRQ` is not used as a model feature by default.
+   - Training checkpoints are saved under `ml-train/checkpoints/`.
+   - Each training run writes a timestamped newline-delimited JSON log under `ml-train/logs/`, named with the run time and model name.
 
 2. `v-converter/`
    - hls4ml conversion work lives here.
@@ -39,7 +46,7 @@ If PowerShell profile loading emits an execution-policy warning, continue using 
 ## Working Conventions
 
 - Keep PyTorch training code and generated training artifacts scoped to `ml-train/`.
-- `ml-train/data/` is ignored by Git by default; commit raw or processed datasets only if the user explicitly asks.
+- `ml-train/data/`, `ml-train/checkpoints/`, and `ml-train/logs/` are ignored by Git by default; commit datasets or run artifacts only if the user explicitly asks.
 - Keep hls4ml conversion scripts, generated HLS projects, and Verilog output scoped to `v-converter/`.
 - Prefer small, reproducible scripts over notebook-only workflows.
 - Avoid committing large generated artifacts, datasets, caches, and build outputs unless the user explicitly asks to track them.
