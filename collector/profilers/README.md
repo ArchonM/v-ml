@@ -33,6 +33,24 @@ make HPM_PROFILER_EVENT_OFFSET=0 HPM_PROFILER_EVENT_COUNT=29
 make HPM_PROFILER_EVENT_OFFSET=29 HPM_PROFILER_EVENT_COUNT=6
 ```
 
+Named build targets:
+
+```sh
+# Event-screening build: repeats=100, events 0..28, summary only
+make events0-summary
+
+# Event-screening build: repeats=100, events 29..34, summary only
+make events29-summary
+
+# Official ML data build, after selecting the meaningful event window
+make ml-data ML_EVENT_OFFSET=0 ML_EVENT_COUNT=29
+```
+
+The `ml-data` target intentionally requires `ML_EVENT_OFFSET` and
+`ML_EVENT_COUNT`; choose those after checking which event counters are useful
+with the two summary targets. It uses `HPM_PROFILER_REPEATS=1000` and prints
+all captured rows.
+
 The profiler knows all 35 event masks currently defined in `collector/HPC.h`.
 Only 29 HPM counters are available at once, so use `HPM_PROFILER_EVENT_OFFSET`
 and `HPM_PROFILER_EVENT_COUNT` to sweep through the list. The printed header is

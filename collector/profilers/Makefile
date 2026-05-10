@@ -76,6 +76,20 @@ all: $(bins)
 riscv: $(dumps)
 run: $(outs)
 
+events0-summary:
+	$(MAKE) clean
+	$(MAKE) HPM_PROFILER_REPEATS=100 HPM_PROFILER_EVENT_OFFSET=0 HPM_PROFILER_EVENT_COUNT=29 HPM_PROFILER_SUMMARY_ONLY=1 all
+
+events29-summary:
+	$(MAKE) clean
+	$(MAKE) HPM_PROFILER_REPEATS=100 HPM_PROFILER_EVENT_OFFSET=29 HPM_PROFILER_EVENT_COUNT=6 HPM_PROFILER_SUMMARY_ONLY=1 all
+
+ml-data:
+	@test -n "$(ML_EVENT_OFFSET)" || (echo "Set ML_EVENT_OFFSET before building official ML data binaries"; exit 2)
+	@test -n "$(ML_EVENT_COUNT)" || (echo "Set ML_EVENT_COUNT before building official ML data binaries"; exit 2)
+	$(MAKE) clean
+	$(MAKE) HPM_PROFILER_REPEATS=1000 HPM_PROFILER_EVENT_OFFSET=$(ML_EVENT_OFFSET) HPM_PROFILER_EVENT_COUNT=$(ML_EVENT_COUNT) HPM_PROFILER_SUMMARY_ONLY=0 HPM_PROFILER_PRINT_STRIDE=1 HPM_PROFILER_MAX_PRINT_SAMPLES=$(HPM_PROFILER_BUFFER_SIZE) all
+
 %.riscv.dump: %.riscv
 	$(RISCV_OBJDUMP) $< > $@
 
@@ -85,4 +99,4 @@ run: $(outs)
 clean:
 	rm -f $(bins) $(dumps) $(outs)
 
-.PHONY: all riscv run clean
+.PHONY: all riscv run events0-summary events29-summary ml-data clean
