@@ -20,6 +20,7 @@ RISCV_MARCH ?= rv$(XLEN)gc
 RISCV_SIM ?= spike --isa=$(RISCV_MARCH)
 HPM_PROFILER_BUFFER_SIZE ?= 500
 HPM_PROFILER_INTERVAL ?= 100
+HPM_PROFILER_REPEATS ?= 1
 
 benchmarks := median multiply vvadd memcpy qsort rsort spmv towers
 
@@ -36,7 +37,7 @@ incs := -I$(profiler_dir) -I$(src_dir) -I$(common_dir) \
 	-I$(src_dir)/benchmarks/towers
 
 common_srcs := hpm_profiler.c $(common_dir)/syscalls.c $(common_dir)/crt.S
-profiler_defs := -DHPM_PROFILER_BUFFER_SIZE=$(HPM_PROFILER_BUFFER_SIZE) -DHPM_PROFILER_INTERVAL=$(HPM_PROFILER_INTERVAL)
+profiler_defs := -DHPM_PROFILER_BUFFER_SIZE=$(HPM_PROFILER_BUFFER_SIZE) -DHPM_PROFILER_INTERVAL=$(HPM_PROFILER_INTERVAL) -DHPM_PROFILER_REPEATS=$(HPM_PROFILER_REPEATS)
 
 median_srcs := median_profiler.c $(src_dir)/benchmarks/median/median.c
 multiply_srcs := multiply_profiler.c $(src_dir)/benchmarks/multiply/multiply.c

@@ -13,10 +13,18 @@
 
 static volatile uint32_t interrupt_count;
 static volatile uint32_t profiling_enabled;
+static volatile uint32_t stats_depth;
+static volatile uint32_t repeat_batch_mode;
 
 static uint64_t cycle_buffer[HPM_PROFILER_BUFFER_SIZE];
 static uint64_t instret_buffer[HPM_PROFILER_BUFFER_SIZE];
 static uint64_t hpm_buffers[29][HPM_PROFILER_BUFFER_SIZE];
+static uint64_t start_mtime;
+static uint64_t stop_mtime;
+static uint64_t start_mcycle;
+static uint64_t stop_mcycle;
+static uint64_t start_minstret;
+static uint64_t stop_minstret;
 
 extern void tohost_exit(uintptr_t code);
 
@@ -183,6 +191,14 @@ void profiler_init(void)
     reset_hpm_counters();
     interrupt_count = 0;
     profiling_enabled = 0;
+    stats_depth = 0;
+    repeat_batch_mode = 0;
+    start_mtime = 0;
+    stop_mtime = 0;
+    start_mcycle = 0;
+    stop_mcycle = 0;
+    start_minstret = 0;
+    stop_minstret = 0;
 
     write_csr(mideleg, read_csr(mideleg) & ~MTIE_BIT);
     write_csr(mstatus, read_csr(mstatus) | MSTATUS_FS);
@@ -193,6 +209,9 @@ void profiler_start(void)
     interrupt_count = 0;
     profiling_enabled = 1;
     reset_hpm_counters();
+    start_mtime = read_mtime();
+    start_mcycle = read_csr(mcycle);
+    start_minstret = read_csr(minstret);
     arm_timer();
 
     write_csr(mie, read_csr(mie) | MTIE_BIT);
@@ -206,15 +225,49 @@ void profiler_stop(void)
     }
 
     profiling_enabled = 0;
+    stop_mtime = read_mtime();
+    stop_mcycle = read_csr(mcycle);
+    stop_minstret = read_csr(minstret);
     write_csr(mie, read_csr(mie) & ~MTIE_BIT);
 }
 
 void profiler_set_stats(int enable)
 {
     if (enable) {
-        profiler_start();
+        if (stats_depth == 0 && !profiling_enabled) {
+            profiler_start();
+        }
+        stats_depth++;
     } else {
-        profiler_stop();
+        if (stats_depth > 0) {
+            stats_depth--;
+        }
+        if (stats_depth == 0 && !repeat_batch_mode) {
+            profiler_stop();
+        }
+    }
+}
+
+void profiler_run_benchmark(int (*benchmark_main)(int, char **),
+                            int argc,
+                            char **argv,
+                            const char *benchmark_name)
+{
+    int ret = 0;
+
+    profiler_init();
+    repeat_batch_mode = HPM_PROFILER_REPEATS > 1;
+    for (int i = 0; i < HPM_PROFILER_REPEATS; i++) {
+        ret = benchmark_main(argc, argv);
+        if (ret != 0) {
+            break;
+        }
+    }
+    repeat_batch_mode = 0;
+    profiler_stop();
+    profiler_print(benchmark_name);
+    if (ret != 0) {
+        tohost_exit((uintptr_t)ret);
     }
 }
 
@@ -227,6 +280,12 @@ void profiler_print(const char *benchmark_name)
 
     printf("\nBenchmark: %s\n", benchmark_name);
     printf("Workload Finished. Total Interrupts Caught: %u\n", interrupt_count);
+    printf("Profiler Diagnostics | mtime_delta=%" PRIu64 " | mcycle_delta=%" PRIu64 " | minstret_delta=%" PRIu64 " | interval=%u | repeats=%u\n",
+           stop_mtime - start_mtime,
+           stop_mcycle - start_mcycle,
+           stop_minstret - start_minstret,
+           (unsigned)HPM_PROFILER_INTERVAL,
+           (unsigned)HPM_PROFILER_REPEATS);
     printf("IRQ | Cycles | Instret | Load | Store | Arith | Excpt | AMO | Sys | JAL | JALR | Mul | Div | FLd | FSt | FAdd | FMul | FMadd | FDiv | FOth | LdUse | LngLat | CSR | ICBlk | BrMis | TgtMis | Flush | Replay | MDIntk | FPIntk | ICMiss | TLBMiss\n");
 
     for (uint32_t i = 0; i < samples; i++) {

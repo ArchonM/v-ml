@@ -8,9 +8,6 @@
 
 int main(int argc, char **argv)
 {
-    profiler_init();
-    int ret = benchmark_main(argc, argv);
-    profiler_stop();
-    profiler_print("multiply");
-    return ret;
+    profiler_run_benchmark(benchmark_main, argc, argv, "multiply");
+    return 0;
 }

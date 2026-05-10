@@ -8,9 +8,6 @@
 
 int main(int argc, char **argv)
 {
-    profiler_init();
-    int ret = benchmark_main(argc, argv);
-    profiler_stop();
-    profiler_print("vvadd");
-    return ret;
+    profiler_run_benchmark(benchmark_main, argc, argv, "vvadd");
+    return 0;
 }

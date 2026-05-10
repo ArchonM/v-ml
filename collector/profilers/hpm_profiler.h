@@ -11,10 +11,18 @@
 #define HPM_PROFILER_INTERVAL 100
 #endif
 
+#ifndef HPM_PROFILER_REPEATS
+#define HPM_PROFILER_REPEATS 1
+#endif
+
 void profiler_init(void);
 void profiler_start(void);
 void profiler_stop(void);
 void profiler_set_stats(int enable);
 void profiler_print(const char *benchmark_name);
+void profiler_run_benchmark(int (*benchmark_main)(int, char **),
+                            int argc,
+                            char **argv,
+                            const char *benchmark_name);
 
 #endif
