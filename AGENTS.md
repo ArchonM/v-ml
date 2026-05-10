@@ -30,6 +30,8 @@ This workspace is for a new Verilog ML flow with three main parts:
    - The target is a RocketChip bare-metal design emulated on Arty A7 100T / Chipyard-compatible systems.
    - `collector/benchmarks/` contains imported riscv-tests style benchmark sources and common bare-metal support code.
    - `collector/profilers/` contains profiled benchmark wrappers and the reusable hardware event profiler runtime.
+   - `collector/tools/uart_tsi` is the checked-in host tool used to run `.riscv` binaries through the UART TSI bridge.
+   - `collector/scripts/collect_profiles.sh` automates `uart_tsi` runs and records raw logs, defaulting to `ml-train/data/raw/`.
    - `collector/profilers/hpm_profiler.c` configures Rocket-style `mhpmevent` selectors, samples counters on machine timer interrupts, and prints pipe-delimited counter snapshots.
    - The profiler supports sweeping all event masks defined in `collector/HPC.h` with `HPM_PROFILER_EVENT_OFFSET` and `HPM_PROFILER_EVENT_COUNT`; only 29 HPM counters can be active in one binary.
    - Use `HPM_PROFILER_REPEATS` to keep small benchmarks running long enough for timer interrupts to fire.

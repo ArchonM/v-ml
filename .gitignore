@@ -46,6 +46,11 @@ v-converter/**/firmware/weights/
 *.wdb
 *.vcd
 
+# Collector generated outputs
+collector/profilers/*.riscv
+collector/profilers/*.riscv.dump
+collector/profilers/*.riscv.out
+
 # OS/editor
 .DS_Store
 Thumbs.db

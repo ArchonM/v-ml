@@ -69,6 +69,24 @@ screening, prefer `HPM_PROFILER_SUMMARY_ONLY=1` or a larger
 `HPM_PROFILER_PRINT_STRIDE`. For ML data collection, keep row output enabled
 but cap the number of printed samples to the amount you actually need.
 
+Automated collection through `uart_tsi`:
+
+```sh
+# From the repository root, after building profiler .riscv binaries on Linux
+collector/scripts/collect_profiles.sh
+collector/scripts/collect_profiles.sh --tty /dev/ttyUSB1 multiply
+collector/scripts/collect_profiles.sh --tty /dev/ttyUSB1 multiply median qsort
+collector/scripts/collect_profiles.sh --tty /dev/ttyUSB1 --label events0-28 all
+```
+
+The script uses `collector/tools/uart_tsi` by default and saves captured logs
+under `ml-train/data/raw/`, which is ignored by Git. It accepts benchmark names
+without `.riscv`, full paths to `.riscv` files, or `all` for every profiler
+binary in this directory. With no benchmark arguments, it runs every `.riscv`
+binary in this directory using `/dev/ttyUSB1`. By default, output filenames
+include a timestamp so multiple runs are preserved separately. Use
+`--no-timestamp` when you want stable filenames such as `multiply.log`.
+
 The generated `.riscv` binaries print a pipe-delimited table compatible with
 the training data processor. `Cycles`, `Instret`, and all HPM columns are
 cumulative snapshots; downstream processing can compute per-IRQ deltas.
