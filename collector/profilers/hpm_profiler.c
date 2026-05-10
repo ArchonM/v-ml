@@ -57,6 +57,10 @@ static const hpm_event_t hpm_events[HPM_EVENT_TOTAL] = {
     {"L2TLBMiss", EVENT_MEM, L2TB_MISS},
 };
 
+#ifdef HPM_PROFILER_EVENT_LIST
+static const uint32_t hpm_event_list[] = { HPM_PROFILER_EVENT_LIST };
+#endif
+
 static volatile uint32_t interrupt_count;
 static volatile uint32_t profiling_enabled;
 static volatile uint32_t stats_depth;
@@ -183,6 +187,18 @@ static void configure_hpm_events(void)
     HPC_INIT_ALL();
 
     active_event_count = 0;
+#ifdef HPM_PROFILER_EVENT_LIST
+    uint32_t configured_event_count = sizeof(hpm_event_list) / sizeof(hpm_event_list[0]);
+    for (uint32_t i = 0; i < HPM_COUNTER_COUNT && i < configured_event_count; i++) {
+        uint32_t event_index = hpm_event_list[i];
+        if (event_index >= HPM_EVENT_TOTAL) {
+            continue;
+        }
+
+        HPC_ASSIGN((int)(active_event_count + 3), hpm_events[event_index].set, hpm_events[event_index].mask);
+        active_event_count++;
+    }
+#else
     for (uint32_t i = 0; i < HPM_COUNTER_COUNT; i++) {
         uint32_t event_index = HPM_PROFILER_EVENT_OFFSET + i;
         if (i >= HPM_PROFILER_EVENT_COUNT || event_index >= HPM_EVENT_TOTAL) {
@@ -192,6 +208,16 @@ static void configure_hpm_events(void)
         HPC_ASSIGN((int)(i + 3), hpm_events[event_index].set, hpm_events[event_index].mask);
         active_event_count++;
     }
+#endif
+}
+
+static uint32_t active_event_index(uint32_t active_index)
+{
+#ifdef HPM_PROFILER_EVENT_LIST
+    return hpm_event_list[active_index];
+#else
+    return HPM_PROFILER_EVENT_OFFSET + active_index;
+#endif
 }
 
 static void snapshot_counters(uint32_t index)
@@ -346,7 +372,7 @@ void profiler_print(const char *benchmark_name)
 
     printf("Event Summary:");
     for (uint32_t i = 0; i < active_event_count; i++) {
-        uint32_t event_index = HPM_PROFILER_EVENT_OFFSET + i;
+        uint32_t event_index = active_event_index(i);
         printf(" %s=%" PRIu64, hpm_events[event_index].name, final_hpm_counters[i]);
     }
     printf("\n");
@@ -357,7 +383,7 @@ void profiler_print(const char *benchmark_name)
 
     printf("IRQ | Cycles | Instret");
     for (uint32_t i = 0; i < active_event_count; i++) {
-        uint32_t event_index = HPM_PROFILER_EVENT_OFFSET + i;
+        uint32_t event_index = active_event_index(i);
         printf(" | %s", hpm_events[event_index].name);
     }
     printf("\n");

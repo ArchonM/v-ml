@@ -42,14 +42,28 @@ make events0-summary
 # Event-screening build: repeats=100, events 29..34, summary only
 make events29-summary
 
-# Official ML data build, after selecting the meaningful event window
-make ml-data ML_EVENT_OFFSET=0 ML_EVENT_COUNT=29
+# Official ML data build using the current meaningful event list
+make ml-data
 ```
 
-The `ml-data` target intentionally requires `ML_EVENT_OFFSET` and
-`ML_EVENT_COUNT`; choose those after checking which event counters are useful
-with the two summary targets. It uses `HPM_PROFILER_REPEATS=1000` and prints
-all captured rows.
+The `ml-data` target uses `HPM_PROFILER_REPEATS=1000` and prints all captured
+rows. Its default `ML_EVENT_LIST` includes only events that were nonzero in the
+May 10, 2026 event-screening logs:
+
+```text
+0 Load, 1 Store, 2 Arith, 3 Branch, 4 Excpt, 6 Sys, 7 JAL,
+8 JALR, 11 FLd, 12 FSt, 13 FAdd, 15 FMadd, 17 FOth,
+18 LdUse, 19 LngLat, 20 CSR, 21 ICBlk, 22 DCBlk,
+23 BrMis, 24 TgtMis, 25 Flush, 26 Replay, 28 FPIntk,
+29 ICMiss, 30 DCMiss, 31 DCRel
+```
+
+Override it with a comma-separated event index list if later hardware runs show
+a different useful subset:
+
+```sh
+make ml-data ML_EVENT_LIST=0,1,2,3
+```
 
 The profiler knows all 35 event masks currently defined in `collector/HPC.h`.
 Only 29 HPM counters are available at once, so use `HPM_PROFILER_EVENT_OFFSET`
