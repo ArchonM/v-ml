@@ -10,6 +10,52 @@
 
 #define MACHINE_TIMER_IRQ 7
 #define MTIE_BIT (1UL << MACHINE_TIMER_IRQ)
+#define HPM_COUNTER_COUNT 29
+#define HPM_EVENT_TOTAL 35
+
+typedef struct {
+    const char *name;
+    uint32_t set;
+    uint32_t mask;
+} hpm_event_t;
+
+static const hpm_event_t hpm_events[HPM_EVENT_TOTAL] = {
+    {"Load", EVENT_INSTR, HPM_LOAD},
+    {"Store", EVENT_INSTR, HPM_STORE},
+    {"Arith", EVENT_INSTR, HPM_ARITH},
+    {"Branch", EVENT_INSTR, HPM_BRANCH},
+    {"Excpt", EVENT_INSTR, HPM_EXCEPTION},
+    {"AMO", EVENT_INSTR, HPM_AMO},
+    {"Sys", EVENT_INSTR, HPM_SYS},
+    {"JAL", EVENT_INSTR, HPM_JAL},
+    {"JALR", EVENT_INSTR, HPM_JALR},
+    {"Mul", EVENT_INSTR, HPM_MUL},
+    {"Div", EVENT_INSTR, HPM_DIV},
+    {"FLd", EVENT_INSTR, HPM_LOAD_FP},
+    {"FSt", EVENT_INSTR, HPM_STORE_FP},
+    {"FAdd", EVENT_INSTR, HPM_ADD_FP},
+    {"FMul", EVENT_INSTR, HPM_MUL_FP},
+    {"FMadd", EVENT_INSTR, HPM_MADD_FP},
+    {"FDiv", EVENT_INSTR, HPM_DIVSQRT_FP},
+    {"FOth", EVENT_INSTR, HPM_OTHER_FP},
+    {"LdUse", EVENT_STALL, LOAD_USE_INTLK},
+    {"LngLat", EVENT_STALL, LONG_INTLK},
+    {"CSR", EVENT_STALL, CSR_INTLK},
+    {"ICBlk", EVENT_STALL, ICACHE_BLK},
+    {"DCBlk", EVENT_STALL, DCACHE_CLK},
+    {"BrMis", EVENT_STALL, BR_MISPRED},
+    {"TgtMis", EVENT_STALL, TGT_MISPRED},
+    {"Flush", EVENT_STALL, FLUSH},
+    {"Replay", EVENT_STALL, REPLAY},
+    {"MDIntk", EVENT_STALL, MUL_DIV_INTLK},
+    {"FPIntk", EVENT_STALL, FP_INTLK},
+    {"ICMiss", EVENT_MEM, ICACHE_MISS},
+    {"DCMiss", EVENT_MEM, DCACHE_MISS},
+    {"DCRel", EVENT_MEM, DCACHE_REL},
+    {"ITLBMiss", EVENT_MEM, ITLB_MISS},
+    {"DTLBMiss", EVENT_MEM, DTLB_MISS},
+    {"L2TLBMiss", EVENT_MEM, L2TB_MISS},
+};
 
 static volatile uint32_t interrupt_count;
 static volatile uint32_t profiling_enabled;
@@ -18,7 +64,9 @@ static volatile uint32_t repeat_batch_mode;
 
 static uint64_t cycle_buffer[HPM_PROFILER_BUFFER_SIZE];
 static uint64_t instret_buffer[HPM_PROFILER_BUFFER_SIZE];
-static uint64_t hpm_buffers[29][HPM_PROFILER_BUFFER_SIZE];
+static uint64_t hpm_buffers[HPM_COUNTER_COUNT][HPM_PROFILER_BUFFER_SIZE];
+static uint64_t final_hpm_counters[HPM_COUNTER_COUNT];
+static uint32_t active_event_count;
 static uint64_t start_mtime;
 static uint64_t stop_mtime;
 static uint64_t start_mcycle;
@@ -94,74 +142,65 @@ static void reset_hpm_counters(void)
     write_csr(mhpmcounter31, 0);
 }
 
+static uint64_t read_hpm_counter(uint32_t counter)
+{
+    switch (counter) {
+        case 3: return read_csr(mhpmcounter3);
+        case 4: return read_csr(mhpmcounter4);
+        case 5: return read_csr(mhpmcounter5);
+        case 6: return read_csr(mhpmcounter6);
+        case 7: return read_csr(mhpmcounter7);
+        case 8: return read_csr(mhpmcounter8);
+        case 9: return read_csr(mhpmcounter9);
+        case 10: return read_csr(mhpmcounter10);
+        case 11: return read_csr(mhpmcounter11);
+        case 12: return read_csr(mhpmcounter12);
+        case 13: return read_csr(mhpmcounter13);
+        case 14: return read_csr(mhpmcounter14);
+        case 15: return read_csr(mhpmcounter15);
+        case 16: return read_csr(mhpmcounter16);
+        case 17: return read_csr(mhpmcounter17);
+        case 18: return read_csr(mhpmcounter18);
+        case 19: return read_csr(mhpmcounter19);
+        case 20: return read_csr(mhpmcounter20);
+        case 21: return read_csr(mhpmcounter21);
+        case 22: return read_csr(mhpmcounter22);
+        case 23: return read_csr(mhpmcounter23);
+        case 24: return read_csr(mhpmcounter24);
+        case 25: return read_csr(mhpmcounter25);
+        case 26: return read_csr(mhpmcounter26);
+        case 27: return read_csr(mhpmcounter27);
+        case 28: return read_csr(mhpmcounter28);
+        case 29: return read_csr(mhpmcounter29);
+        case 30: return read_csr(mhpmcounter30);
+        case 31: return read_csr(mhpmcounter31);
+        default: return 0;
+    }
+}
+
 static void configure_hpm_events(void)
 {
     HPC_INIT_ALL();
 
-    HPC_ASSIGN(3, EVENT_INSTR, HPM_LOAD);
-    HPC_ASSIGN(4, EVENT_INSTR, HPM_STORE);
-    HPC_ASSIGN(5, EVENT_INSTR, HPM_ARITH);
-    HPC_ASSIGN(6, EVENT_INSTR, HPM_EXCEPTION);
-    HPC_ASSIGN(7, EVENT_INSTR, HPM_AMO);
-    HPC_ASSIGN(8, EVENT_INSTR, HPM_SYS);
-    HPC_ASSIGN(9, EVENT_INSTR, HPM_JAL);
-    HPC_ASSIGN(10, EVENT_INSTR, HPM_JALR);
-    HPC_ASSIGN(11, EVENT_INSTR, HPM_MUL);
-    HPC_ASSIGN(12, EVENT_INSTR, HPM_DIV);
-    HPC_ASSIGN(13, EVENT_INSTR, HPM_LOAD_FP);
-    HPC_ASSIGN(14, EVENT_INSTR, HPM_STORE_FP);
-    HPC_ASSIGN(15, EVENT_INSTR, HPM_ADD_FP);
-    HPC_ASSIGN(16, EVENT_INSTR, HPM_MUL_FP);
-    HPC_ASSIGN(17, EVENT_INSTR, HPM_MADD_FP);
-    HPC_ASSIGN(18, EVENT_INSTR, HPM_DIVSQRT_FP);
-    HPC_ASSIGN(19, EVENT_INSTR, HPM_OTHER_FP);
-    HPC_ASSIGN(20, EVENT_STALL, LOAD_USE_INTLK);
-    HPC_ASSIGN(21, EVENT_STALL, LONG_INTLK);
-    HPC_ASSIGN(22, EVENT_STALL, CSR_INTLK);
-    HPC_ASSIGN(23, EVENT_STALL, ICACHE_BLK);
-    HPC_ASSIGN(24, EVENT_STALL, BR_MISPRED);
-    HPC_ASSIGN(25, EVENT_STALL, TGT_MISPRED);
-    HPC_ASSIGN(26, EVENT_STALL, FLUSH);
-    HPC_ASSIGN(27, EVENT_STALL, REPLAY);
-    HPC_ASSIGN(28, EVENT_STALL, MUL_DIV_INTLK);
-    HPC_ASSIGN(29, EVENT_STALL, FP_INTLK);
-    HPC_ASSIGN(30, EVENT_MEM, ICACHE_MISS);
-    HPC_ASSIGN(31, EVENT_MEM, ITLB_MISS);
+    active_event_count = 0;
+    for (uint32_t i = 0; i < HPM_COUNTER_COUNT; i++) {
+        uint32_t event_index = HPM_PROFILER_EVENT_OFFSET + i;
+        if (i >= HPM_PROFILER_EVENT_COUNT || event_index >= HPM_EVENT_TOTAL) {
+            break;
+        }
+
+        HPC_ASSIGN((int)(i + 3), hpm_events[event_index].set, hpm_events[event_index].mask);
+        active_event_count++;
+    }
 }
 
 static void snapshot_counters(uint32_t index)
 {
     cycle_buffer[index] = read_csr(mcycle);
     instret_buffer[index] = read_csr(minstret);
-    hpm_buffers[0][index] = read_csr(mhpmcounter3);
-    hpm_buffers[1][index] = read_csr(mhpmcounter4);
-    hpm_buffers[2][index] = read_csr(mhpmcounter5);
-    hpm_buffers[3][index] = read_csr(mhpmcounter6);
-    hpm_buffers[4][index] = read_csr(mhpmcounter7);
-    hpm_buffers[5][index] = read_csr(mhpmcounter8);
-    hpm_buffers[6][index] = read_csr(mhpmcounter9);
-    hpm_buffers[7][index] = read_csr(mhpmcounter10);
-    hpm_buffers[8][index] = read_csr(mhpmcounter11);
-    hpm_buffers[9][index] = read_csr(mhpmcounter12);
-    hpm_buffers[10][index] = read_csr(mhpmcounter13);
-    hpm_buffers[11][index] = read_csr(mhpmcounter14);
-    hpm_buffers[12][index] = read_csr(mhpmcounter15);
-    hpm_buffers[13][index] = read_csr(mhpmcounter16);
-    hpm_buffers[14][index] = read_csr(mhpmcounter17);
-    hpm_buffers[15][index] = read_csr(mhpmcounter18);
-    hpm_buffers[16][index] = read_csr(mhpmcounter19);
-    hpm_buffers[17][index] = read_csr(mhpmcounter20);
-    hpm_buffers[18][index] = read_csr(mhpmcounter21);
-    hpm_buffers[19][index] = read_csr(mhpmcounter22);
-    hpm_buffers[20][index] = read_csr(mhpmcounter23);
-    hpm_buffers[21][index] = read_csr(mhpmcounter24);
-    hpm_buffers[22][index] = read_csr(mhpmcounter25);
-    hpm_buffers[23][index] = read_csr(mhpmcounter26);
-    hpm_buffers[24][index] = read_csr(mhpmcounter27);
-    hpm_buffers[25][index] = read_csr(mhpmcounter28);
-    hpm_buffers[26][index] = read_csr(mhpmcounter29);
-    hpm_buffers[27][index] = read_csr(mhpmcounter30);
-    hpm_buffers[28][index] = read_csr(mhpmcounter31);
+    for (uint32_t i = 0; i < active_event_count; i++) {
+        hpm_buffers[i][index] = read_hpm_counter(i + 3);
+    }
 }
 
 uintptr_t handle_trap(uintptr_t cause, uintptr_t epc, uintptr_t regs[32])
@@ -199,6 +238,9 @@ void profiler_init(void)
     stop_mcycle = 0;
     start_minstret = 0;
     stop_minstret = 0;
+    for (uint32_t i = 0; i < HPM_COUNTER_COUNT; i++) {
+        final_hpm_counters[i] = 0;
+    }
 
     write_csr(mideleg, read_csr(mideleg) & ~MTIE_BIT);
     write_csr(mstatus, read_csr(mstatus) | MSTATUS_FS);
@@ -228,6 +270,9 @@ void profiler_stop(void)
     stop_mtime = read_mtime();
     stop_mcycle = read_csr(mcycle);
     stop_minstret = read_csr(minstret);
+    for (uint32_t i = 0; i < active_event_count; i++) {
+        final_hpm_counters[i] = read_hpm_counter(i + 3);
+    }
     write_csr(mie, read_csr(mie) & ~MTIE_BIT);
 }
 
@@ -277,20 +322,49 @@ void profiler_print(const char *benchmark_name)
     if (samples > HPM_PROFILER_BUFFER_SIZE) {
         samples = HPM_PROFILER_BUFFER_SIZE;
     }
+    if (samples > HPM_PROFILER_MAX_PRINT_SAMPLES) {
+        samples = HPM_PROFILER_MAX_PRINT_SAMPLES;
+    }
+
+    uint32_t print_stride = HPM_PROFILER_PRINT_STRIDE;
+    if (print_stride == 0) {
+        print_stride = 1;
+    }
 
     printf("\nBenchmark: %s\n", benchmark_name);
     printf("Workload Finished. Total Interrupts Caught: %u\n", interrupt_count);
-    printf("Profiler Diagnostics | mtime_delta=%" PRIu64 " | mcycle_delta=%" PRIu64 " | minstret_delta=%" PRIu64 " | interval=%u | repeats=%u\n",
+    printf("Profiler Diagnostics: mtime_delta=%" PRIu64 ", mcycle_delta=%" PRIu64 ", minstret_delta=%" PRIu64 ", interval=%u, repeats=%u, event_offset=%u, active_events=%u, print_stride=%u, max_print_samples=%u\n",
            stop_mtime - start_mtime,
            stop_mcycle - start_mcycle,
            stop_minstret - start_minstret,
            (unsigned)HPM_PROFILER_INTERVAL,
-           (unsigned)HPM_PROFILER_REPEATS);
-    printf("IRQ | Cycles | Instret | Load | Store | Arith | Excpt | AMO | Sys | JAL | JALR | Mul | Div | FLd | FSt | FAdd | FMul | FMadd | FDiv | FOth | LdUse | LngLat | CSR | ICBlk | BrMis | TgtMis | Flush | Replay | MDIntk | FPIntk | ICMiss | TLBMiss\n");
+           (unsigned)HPM_PROFILER_REPEATS,
+           (unsigned)HPM_PROFILER_EVENT_OFFSET,
+           (unsigned)active_event_count,
+           (unsigned)print_stride,
+           (unsigned)HPM_PROFILER_MAX_PRINT_SAMPLES);
 
-    for (uint32_t i = 0; i < samples; i++) {
+    printf("Event Summary:");
+    for (uint32_t i = 0; i < active_event_count; i++) {
+        uint32_t event_index = HPM_PROFILER_EVENT_OFFSET + i;
+        printf(" %s=%" PRIu64, hpm_events[event_index].name, final_hpm_counters[i]);
+    }
+    printf("\n");
+
+    if (HPM_PROFILER_SUMMARY_ONLY) {
+        return;
+    }
+
+    printf("IRQ | Cycles | Instret");
+    for (uint32_t i = 0; i < active_event_count; i++) {
+        uint32_t event_index = HPM_PROFILER_EVENT_OFFSET + i;
+        printf(" | %s", hpm_events[event_index].name);
+    }
+    printf("\n");
+
+    for (uint32_t i = 0; i < samples; i += print_stride) {
         printf("%u | %" PRIu64 " | %" PRIu64, i + 1, cycle_buffer[i], instret_buffer[i]);
-        for (int j = 0; j < 29; j++) {
+        for (uint32_t j = 0; j < active_event_count; j++) {
             printf(" | %" PRIu64, hpm_buffers[j][i]);
         }
         printf("\n");
@@ -299,5 +373,8 @@ void profiler_print(const char *benchmark_name)
     if (interrupt_count > HPM_PROFILER_BUFFER_SIZE) {
         printf("... (Buffer full: %u additional interrupts not logged)\n",
                interrupt_count - HPM_PROFILER_BUFFER_SIZE);
+    }
+    if (interrupt_count > samples) {
+        printf("... (Printing limited to %u captured samples)\n", samples);
     }
 }

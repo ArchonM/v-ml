@@ -23,6 +23,52 @@ make HPM_PROFILER_INTERVAL=1000
 make HPM_PROFILER_REPEATS=100
 ```
 
+Event sweep controls:
+
+```sh
+# First 29 events, counters mhpmcounter3..31
+make HPM_PROFILER_EVENT_OFFSET=0 HPM_PROFILER_EVENT_COUNT=29
+
+# Remaining 6 events
+make HPM_PROFILER_EVENT_OFFSET=29 HPM_PROFILER_EVENT_COUNT=6
+```
+
+The profiler knows all 35 event masks currently defined in `collector/HPC.h`.
+Only 29 HPM counters are available at once, so use `HPM_PROFILER_EVENT_OFFSET`
+and `HPM_PROFILER_EVENT_COUNT` to sweep through the list. The printed header is
+generated from the selected window, which makes it easier to identify counters
+that stay at zero on your design.
+
+Event order:
+
+```text
+0 Load, 1 Store, 2 Arith, 3 Branch, 4 Excpt, 5 AMO, 6 Sys,
+7 JAL, 8 JALR, 9 Mul, 10 Div, 11 FLd, 12 FSt, 13 FAdd,
+14 FMul, 15 FMadd, 16 FDiv, 17 FOth, 18 LdUse, 19 LngLat,
+20 CSR, 21 ICBlk, 22 DCBlk, 23 BrMis, 24 TgtMis, 25 Flush,
+26 Replay, 27 MDIntk, 28 FPIntk, 29 ICMiss, 30 DCMiss,
+31 DCRel, 32 ITLBMiss, 33 DTLBMiss, 34 L2TLBMiss
+```
+
+Output speed controls:
+
+```sh
+# Print every 10th captured sample
+make HPM_PROFILER_PRINT_STRIDE=10
+
+# Print only the first 100 captured samples
+make HPM_PROFILER_MAX_PRINT_SAMPLES=100
+
+# Print only diagnostics and final event totals, no IRQ table
+make HPM_PROFILER_SUMMARY_ONLY=1
+```
+
+Console output through bare-metal `printf`/HTIF is very slow on FPGA-emulated
+systems because each character becomes host-visible I/O. For quick event
+screening, prefer `HPM_PROFILER_SUMMARY_ONLY=1` or a larger
+`HPM_PROFILER_PRINT_STRIDE`. For ML data collection, keep row output enabled
+but cap the number of printed samples to the amount you actually need.
+
 The generated `.riscv` binaries print a pipe-delimited table compatible with
 the training data processor. `Cycles`, `Instret`, and all HPM columns are
 cumulative snapshots; downstream processing can compute per-IRQ deltas.
