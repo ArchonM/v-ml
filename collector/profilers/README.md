@@ -95,6 +95,7 @@ collector/scripts/collect_profiles.sh
 collector/scripts/collect_profiles.sh --tty /dev/ttyUSB1 multiply
 collector/scripts/collect_profiles.sh --tty /dev/ttyUSB1 multiply median qsort
 collector/scripts/collect_profiles.sh --tty /dev/ttyUSB1 --label events0-28 all
+collector/scripts/collect_profiles.sh --tty /dev/ttyUSB1 --wait-for-reset all
 ```
 
 The script uses `collector/tools/uart_tsi` by default and saves captured logs
@@ -104,6 +105,9 @@ binary in this directory. With no benchmark arguments, it runs every `.riscv`
 binary in this directory using `/dev/ttyUSB1`. By default, output filenames
 include a timestamp so multiple runs are preserved separately. Use
 `--no-timestamp` when you want stable filenames such as `multiply.log`.
+Before each run the script prints a reset notice and waits 5 seconds by default.
+Use `--wait-for-reset` to pause until you press Enter after resetting the FPGA,
+or `--sleep 0` to launch runs without an automatic delay.
 
 The generated `.riscv` binaries print a pipe-delimited table compatible with
 the training data processor. `Cycles`, `Instret`, and all HPM columns are

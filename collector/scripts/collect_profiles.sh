@@ -13,6 +13,8 @@ label=""
 timeout_seconds=""
 dry_run=0
 use_timestamp=1
+sleep_seconds=5
+wait_for_reset=0
 declare -a benchmarks=()
 declare -a extra_uart_args=()
 
@@ -26,6 +28,7 @@ Examples:
   collector/scripts/collect_profiles.sh --tty /dev/ttyUSB1 multiply median
   collector/scripts/collect_profiles.sh --label events0-28 multiply
   collector/scripts/collect_profiles.sh --output-dir collector/raw-runs --timeout 300 all
+  collector/scripts/collect_profiles.sh --wait-for-reset all
 
 Options:
   -t, --tty PATH          Serial device passed as +tty=PATH. Default: /dev/ttyUSB1
@@ -35,6 +38,8 @@ Options:
   -l, --label TEXT        Add TEXT to output filenames, useful for event sweeps.
       --timestamp         Add YYYYmmdd_HHMMSS to output filenames. Default behavior.
       --no-timestamp      Write stable filenames such as multiply.log.
+      --sleep SECONDS     Sleep before each run so the board can settle. Default: 5
+      --wait-for-reset    Prompt for FPGA reset and wait for Enter before each run.
       --timeout SECONDS   Stop each run after SECONDS using timeout(1), if available.
       --dry-run           Print command plan without executing.
       --                 Remaining arguments are passed to uart_tsi before the binary.
@@ -77,6 +82,14 @@ while [[ $# -gt 0 ]]; do
       ;;
     --no-timestamp)
       use_timestamp=0
+      shift
+      ;;
+    --sleep)
+      sleep_seconds="$2"
+      shift 2
+      ;;
+    --wait-for-reset)
+      wait_for_reset=1
       shift
       ;;
     --dry-run)
@@ -182,6 +195,16 @@ for binary in "${binaries[@]}"; do
   echo "  log:    ${log_path}"
   echo "  cmd:    ${cmd[*]}"
 
+  if [[ "${dry_run}" -ne 1 ]]; then
+    echo "  reset:  Press the FPGA reset button before this run."
+    if [[ "${wait_for_reset}" -eq 1 ]]; then
+      read -r -p "Press Enter after resetting the FPGA board..."
+    elif [[ "${sleep_seconds}" != "0" ]]; then
+      echo "  sleep:  Waiting ${sleep_seconds}s before launching uart_tsi..."
+      sleep "${sleep_seconds}"
+    fi
+  fi
+
   if [[ "${dry_run}" -eq 1 ]]; then
     continue
   fi
@@ -190,6 +213,9 @@ for binary in "${binaries[@]}"; do
     echo "# benchmark=${bench_name}"
     echo "# binary=${binary}"
     echo "# tty=${tty}"
+    echo "# reset_notice=Press FPGA reset before run"
+    echo "# pre_run_sleep_seconds=${sleep_seconds}"
+    echo "# wait_for_reset=${wait_for_reset}"
     echo "# command=${cmd[*]}"
     echo "# started=$(date --iso-8601=seconds)"
     set +e
